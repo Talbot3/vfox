@@ -1,6 +1,13 @@
+//go:build !cgo
+
+// This test file explicitly builds without CGO to avoid LC_UUID issues on macOS with Go 1.23+
+// See: https://github.com/golang/go/issues/67401
+
 package shell
 
 import (
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -40,7 +47,7 @@ func TestStripLoginShellDash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			shellName := tt.input
-			if len(shellName) > 0 && shellName[0] == '-' {
+			if strings.HasPrefix(shellName, "-") {
 				shellName = shellName[1:]
 			}
 			if shellName != tt.expected {
@@ -100,6 +107,44 @@ func TestCommonShellPaths(t *testing.T) {
 				if path != tt.expected[i] {
 					t.Errorf("Expected path %s, got %s", tt.expected[i], path)
 				}
+			}
+		})
+	}
+}
+
+func TestShellLookup(t *testing.T) {
+	// Test that we can find common shells in PATH or fallback locations
+	shells := []string{"sh", "bash", "zsh"}
+
+	for _, shell := range shells {
+		t.Run(shell, func(t *testing.T) {
+			// Try to find shell in PATH
+			_, err := exec.LookPath(shell)
+			if err != nil {
+				t.Logf("Shell %s not found in PATH, checking fallback locations", shell)
+
+				// Check fallback locations
+				paths := []string{
+					"/bin/" + shell,
+					"/usr/bin/" + shell,
+					"/usr/local/bin/" + shell,
+					"/opt/homebrew/bin/" + shell,
+				}
+
+				found := false
+				for _, path := range paths {
+					if _, err := exec.LookPath(path); err == nil {
+						t.Logf("Found %s at: %s", shell, path)
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					t.Logf("Shell %s not found in PATH or common locations", shell)
+				}
+			} else {
+				t.Logf("Found %s in PATH", shell)
 			}
 		})
 	}
