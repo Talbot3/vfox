@@ -25,7 +25,8 @@ jobs:
           go get .
       - name: Build
         run: |
-          go build .
+          # Use CGO_ENABLED=0 to avoid LC_UUID issues on macOS
+          CGO_ENABLED=0 go build .
       - name: Test and coverage
         run: |
           go test ./... -coverprofile=coverage.out -covermode=atomic
